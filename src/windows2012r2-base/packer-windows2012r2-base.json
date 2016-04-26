@@ -1,0 +1,120 @@
+{
+  "description": "Packer Template for building the Base AMI that all other Services should use. It contains basic configuration that is common to all AMIs.",  
+  "variables": {
+    "build_no": "{{ timestamp }}",
+    "group_code": "B02",
+    "instance_type": "m1.small",
+    "name": "Base",
+    "password": "N0tsosecret",
+    "region": "us-east-1",
+    "regionCode": "USE1",
+    "security_group_id": "sg-5718072f",
+    "source_ami": "ami-c8a9baa2",
+    "spot_price": "0.04",
+    "subnet_id": "subnet-7707632f",
+    "tag_ami_type": "base",
+    "tag_project": "build-automation",
+    "tag_service": "build-automation",
+    "user": "Administrator"
+  },
+  "builders": [
+    {     
+      "type": "amazon-ebs",
+      "communicator": "winrm",
+      "winrm_username": "{{ user `user` }}",
+      "winrm_password": "{{ user `password` }}",
+      "winrm_timeout": "10m",
+      "region": "{{ user `region` }}",
+      "instance_type": "{{ user `instance_type` }}", 
+      "source_ami": "{{ user `source_ami` }}",
+      "spot_price": "{{ user `spot_price` }}",
+      "ami_name": "{{ user `regionCode` | clean_ami_name | upper  }}-EC2-{{ user `group_code` | clean_ami_name | upper }}-PACKER-{{ user `name` | clean_ami_name  | upper }}-AMI-{{ timestamp }}",
+      "subnet_id": "{{ user `subnet_id` }}",
+      "security_group_id": "{{ user `security_group_id` }}",
+      "user_data_file": "./packer-bootstrap.ps1",
+      "ami_block_device_mappings": [
+        {
+          "delete_on_termination": true,
+          "device_name": "/dev/sda1",
+          "volume_size": "50",
+          "volume_type": "gp2"
+        }
+      ],
+      "launch_block_device_mappings": [
+        {
+          "delete_on_termination": true,
+          "device_name": "/dev/sda1",
+          "volume_size": "50",
+          "volume_type": "gp2"
+        }
+      ],
+      "tags": {
+        "AMI-Type": "{{ user `tag_ami_type` | lower }}",
+        "Build-Number": "{{ user `build_no` | lower }}",
+        "Name": "{{ user `regionCode` | clean_ami_name | lower }}-ec2-{{ user `group_code` | clean_ami_name  | lower }}-packer-{{ user `name` | clean_ami_name  | lower }}-ami-{{ timestamp }}",
+        "Project": "{{ user `tag_project` | lower }}",
+        "Service": "{{ user `tag_service` | lower }}"
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "inline": [
+        "New-Item -Path 'c:/' -Name '.automation/tools' -ItemType Directory",
+        "New-Item -Path 'c:/' -Name '.automation/config' -ItemType Directory"
+      ],
+      "type": "powershell"
+    },
+    {
+      "destination": "c:/.automation/config",
+      "source": "./config/",
+      "type": "file"
+    },
+    {
+      "destination": "c:/.automation/config/base-box.ps1",
+      "source": "./scripts/base-box.ps1",
+      "type": "file"
+    },
+    {
+      "destination": "c:/.automation/Modules",
+      "source": "./psmodules/",
+      "type": "file"
+    },
+    {
+      "inline": [
+        "$CurrentValue = [Environment]::GetEnvironmentVariable(\"PSModulePath\", \"Machine\")",
+        "[Environment]::SetEnvironmentVariable(\"PSModulePath\", \"$CurrentValue;c:\\.automation\\Modules\", \"Machine\")"
+      ],
+      "type": "powershell"
+    },
+    {      
+      "script": "./scripts/install-boxstarter.ps1",
+      "type": "powershell",
+      "elevated_user": "{{ user `user`}}",
+      "elevated_password": "{{ user `password`}}"
+    },
+    {
+      "environment_vars": [
+        "packer:user:name={{ user `user`}}",
+        "packer:user:password={{ user `password`}}"        
+      ],
+      "script": "./scripts/run-boxstarterpackage.ps1",
+      "type": "powershell",
+      "elevated_user": "{{ user `user`}}",
+      "elevated_password": "{{ user `password`}}"
+    },
+    {
+      "scripts": [
+        "./scripts/clean-up.ps1"
+      ],
+      "type": "powershell"
+    },
+    {
+      "scripts": [
+        "../common/configure-ec2config-service.ps1"
+      ],
+      "type": "powershell"
+    }
+  ],
+  "post-processors": null
+}

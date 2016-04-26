@@ -1,0 +1,25 @@
+{
+    "chocolatey": [
+        {
+            "name": "powershell"
+        },
+        {
+            "name": "googlechrome"
+        },
+        {
+            "name": "sysinternals"
+        },
+        {
+            "name": "7zip.install"
+        },
+        {
+            "name": "notepadplusplus.install"
+        },
+        {
+            "name": "newrelicserver"
+        },
+        {
+            "name": "carbon"
+        }
+    ]
+}
